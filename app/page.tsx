@@ -19,31 +19,39 @@ import type { ConnectionDetails } from "./api/connection-details/route";
 
 export default function Page() {
   const [room] = useState(new Room());
+  const [parentUrl, setParentUrl] = useState<string>("");
+
+  // 🔁 Listen for postMessage from parent page
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.data?.type === "PARENT_URL" && event.data.data?.url) {
+        setParentUrl(event.data.data.url);
+        console.log("Received parent URL:", event.data.data.url);
+      }
+    }
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   const onConnectButtonClicked = useCallback(async () => {
-    // Generate room connection details, including:
-    //   - A random Room name
-    //   - A random Participant name
-    //   - An Access Token to permit the participant to join the room
-    //   - The URL of the LiveKit server to connect to
-    //
-    // In real-world application, you would likely allow the user to specify their
-    // own participant name, and possibly to choose from existing rooms to join.
-
     const url = new URL(
       process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? "/api/connection-details",
       window.location.origin
     );
+    if (parentUrl) {
+      url.searchParams.set("parentUrl", parentUrl);
+    }
+
     const response = await fetch(url.toString());
     const connectionDetailsData: ConnectionDetails = await response.json();
 
     await room.connect(connectionDetailsData.serverUrl, connectionDetailsData.participantToken);
     await room.localParticipant.setMicrophoneEnabled(true);
-  }, [room]);
+  }, [room, parentUrl]);
 
   useEffect(() => {
     room.on(RoomEvent.MediaDevicesError, onDeviceFailure);
-
     return () => {
       room.off(RoomEvent.MediaDevicesError, onDeviceFailure);
     };
@@ -159,7 +167,7 @@ function ControlBar(props: { onConnectButtonClicked: () => void }) {
             animate={{ opacity: 1, top: 0 }}
             exit={{ opacity: 0, top: "-10px" }}
             transition={{ duration: 0.4, ease: [0.09, 1.04, 0.245, 1.055] }}
-            className="flex h-8 absolute left-1/2 -translate-x-1/2  justify-center"
+            className="flex h-8 absolute left-1/2 -translate-x-1/2 justify-center"
           >
             <VoiceAssistantControlBar controls={{ leave: false }} />
             <DisconnectButton>

@@ -16,7 +16,7 @@ export type ConnectionDetails = {
   participantToken: string;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     if (LIVEKIT_URL === undefined) {
       throw new Error("LIVEKIT_URL is not defined");
@@ -30,7 +30,13 @@ export async function GET() {
 
     // Generate participant token
     const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
-    const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
+
+    const url = new URL(request.url);
+    const fullUrl = url.toString();
+    // const suffix = "zyx"; // or any other logic you want
+    const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}_${encodeURIComponent(fullUrl)}`;
+
+    // const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
     const participantToken = await createParticipantToken(
       { identity: participantIdentity },
       roomName
